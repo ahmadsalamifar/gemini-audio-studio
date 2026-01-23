@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Audio Studio</title>
+    
+    <!-- Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.2/marked.min.js"></script>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Github Icon -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        /* Base Styles */
+        :root { --font-fa: 'Vazirmatn', sans-serif; --font-en: 'Inter', sans-serif; }
+        body.lang-fa { font-family: var(--font-fa); }
+        body.lang-en { font-family: var(--font-en); }
+        
+        .card-hover { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .card-hover:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .spinner { border: 3px solid rgba(0, 0, 0, 0.1); width: 20px; height: 20px; border-radius: 50%; border-left-color: currentColor; animation: spin 1s linear infinite; display: inline-block; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .tab-btn.active { border-bottom-color: #3b82f6; color: #1d4ed8; }
+        .tab-btn { border-bottom: 3px solid transparent; }
+        
+        /* Custom Scrollbar */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+    </style>
+</head>
+<body class="text-gray-800 pb-20 bg-gray-50 lang-en">
+
+    <!-- Language Toggle -->
+    <div class="fixed top-4 left-4 z-50">
+        <button id="lang-toggle" class="bg-white px-3 py-1 rounded-full shadow border text-sm font-bold text-blue-600 hover:bg-blue-50 transition">
+            فارسی
+        </button>
+    </div>
+
+    <div class="container mx-auto p-4 sm:p-6 max-w-6xl">
+        
+        <!-- Header -->
+        <header class="text-center mb-8 mt-4">
+            <h1 class="text-4xl font-extrabold text-slate-800 tracking-tight">
+                <span data-i18n="app_title_part1">Smart</span> 
+                <span class="text-blue-600" data-i18n="app_title_part2">Audio</span> 
+                <span data-i18n="app_title_part3">Studio</span>
+            </h1>
+            <p class="text-gray-500 mt-3 text-lg" data-i18n="app_subtitle">Audio Generation & Analysis powered by Google Gemini 2.5</p>
+        </header>
+
+        <!-- API Settings -->
+        <section class="mb-6 bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+            <div class="p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center cursor-pointer" onclick="document.getElementById('api-details').classList.toggle('hidden')">
+                <div class="flex items-center gap-2">
+                    <svg class="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
+                    <span class="font-bold text-gray-700" data-i18n="settings_title">API Settings</span>
+                </div>
+                <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+            </div>
+            
+            <div id="api-details" class="p-6">
+                <p class="text-sm text-gray-500 mb-4 leading-relaxed" data-i18n="api_desc">
+                    Get your free API key from Google AI Studio.
+                </p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-1">
+                        <label class="text-xs font-bold text-gray-500" data-i18n="api_label">API Key</label>
+                        <input type="password" id="api-key-input" placeholder="AIzaSy..." class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all dir-ltr text-left font-mono text-sm">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-xs font-bold text-gray-500" data-i18n="model_label">Model ID</label>
+                        <input type="text" id="model-id-input" list="model-suggestions" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all dir-ltr text-left font-mono text-sm">
+                        <datalist id="model-suggestions"></datalist>
+                    </div>
+                </div>
+                <button id="save-api-btn" class="mt-4 w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition-colors flex items-center justify-center gap-2">
+                    <span data-i18n="btn_save_connect">Save & Verify Connection</span>
+                </button>
+                <div id="api-status-msg" class="mt-3 text-sm font-medium min-h-[24px]"></div>
+            </div>
+        </section>
+
+        <!-- Tabs -->
+        <div class="flex border-b border-gray-200 mb-6 bg-white rounded-t-xl overflow-hidden shadow-sm">
+            <button id="tab-btn-tts" class="tab-btn active flex-1 py-4 text-center font-bold text-gray-600 hover:bg-gray-50 transition-all flex justify-center items-center gap-2" onclick="switchTab('tts')">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" /></svg>
+                <span data-i18n="tab_tts">Voice Director (TTS)</span>
+            </button>
+            <button id="tab-btn-stt" class="tab-btn flex-1 py-4 text-center font-bold text-gray-600 hover:bg-gray-50 transition-all flex justify-center items-center gap-2" onclick="switchTab('stt')">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+                <span data-i18n="tab_stt">Audio Analysis (STT)</span>
+            </button>
+        </div>
+
+        <!-- TTS View -->
+        <div id="view-tts" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- Sidebar -->
+            <aside class="lg:col-span-4 space-y-6">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden sticky top-6">
+                    <div class="p-4 bg-gray-50 border-b border-gray-100">
+                        <h2 class="font-bold text-gray-800 flex items-center gap-2" data-i18n="speakers_title">
+                            Cast & Speakers
+                        </h2>
+                    </div>
+                    <div class="p-4 space-y-4 max-h-[calc(100vh-300px)] overflow-y-auto custom-scrollbar" id="speakers-list"></div>
+                    <div class="p-4 bg-gray-50 border-t border-gray-100">
+                        <button id="add-speaker-btn" class="w-full py-2.5 px-4 bg-white border-2 border-dashed border-gray-300 text-gray-600 rounded-lg hover:border-indigo-500 hover:text-indigo-600 transition-colors font-bold text-sm flex items-center justify-center gap-2">
+                            <span data-i18n="btn_add_speaker">Add New Speaker</span>
+                        </button>
+                    </div>
+                </div>
+                <!-- Export -->
+                <div class="bg-gradient-to-br from-teal-50 to-emerald-50 rounded-xl shadow-sm border border-teal-100 p-5">
+                    <button id="export-btn" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2">
+                        <span data-i18n="btn_download_zip">Download Files (ZIP)</span>
+                    </button>
+                    <div id="export-status" class="mt-3 text-xs text-center min-h-[20px]"></div>
+                </div>
+            </aside>
+
+            <!-- Script Editor -->
+            <main class="lg:col-span-8">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2" data-i18n="script_title">Script Editor</h2>
+                        <div class="flex gap-2">
+                            <button id="refresh-script-btn" class="text-xs bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-3 py-1.5 rounded-md transition-colors font-medium border border-indigo-200" data-i18n="btn_refresh">
+                                Refresh Cards ⟳
+                            </button>
+                        </div>
+                    </div>
+                    <div class="relative group">
+                        <textarea id="script-editor" class="w-full h-48 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base leading-loose resize-y" placeholder=""></textarea>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-2 text-left" data-i18n="script_format">Format: SpeakerName: Dialogue text</p>
+                </div>
+                <div id="script-cards-container" class="space-y-4"></div>
+            </main>
+        </div>
+
+        <!-- STT View -->
+        <div id="view-stt" class="hidden">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 md:p-8">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Left: Input -->
+                    <div class="space-y-6">
+                        <h3 class="text-lg font-bold text-gray-800 border-b pb-2" data-i18n="stt_input_title">Audio Input</h3>
+                        
+                        <div class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:bg-gray-50 transition-colors relative">
+                            <input type="file" id="audio-file-input" accept="audio/*,video/mp4" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                            <div id="upload-placeholder" class="pointer-events-none">
+                                <svg class="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+                                <p class="text-gray-600 font-medium" data-i18n="upload_text">Drop audio file here</p>
+                                <p class="text-xs text-gray-400 mt-1">MP3, WAV, AAC</p>
+                            </div>
+                            <div id="file-info" class="hidden pointer-events-none">
+                                <div class="flex items-center justify-center gap-2 text-green-600 font-bold">
+                                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                    <span id="filename-display">file.mp3</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2" data-i18n="stt_prompt_label">Prompt:</label>
+                            <textarea id="stt-prompt" class="w-full p-3 border border-gray-300 rounded-lg h-32 focus:ring-blue-500 focus:border-blue-500 resize-none"></textarea>
+                        </div>
+
+                        <button id="analyze-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-all flex items-center justify-center gap-2">
+                            <span data-i18n="btn_analyze">Start Analysis</span>
+                        </button>
+                    </div>
+
+                    <!-- Right: Output -->
+                    <div class="space-y-4">
+                        <h3 class="text-lg font-bold text-gray-800 border-b pb-2" data-i18n="stt_output_title">Analysis Result</h3>
+                        <div id="stt-result" class="bg-gray-50 border border-gray-200 rounded-lg p-4 h-[400px] overflow-y-auto text-sm leading-7 custom-scrollbar whitespace-pre-wrap text-gray-700">...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="mt-10 mb-6 text-center">
+            <a href="https://github.com/ahmadsalamifar" target="_blank" class="inline-flex items-center gap-2 text-gray-400 hover:text-blue-600 transition-colors bg-white px-4 py-2 rounded-full shadow-sm border border-gray-100 decoration-transparent">
+                <i class="fab fa-github text-lg"></i>
+                <span class="text-xs font-medium">Created by</span>
+                <span class="font-bold text-sm">Ahmad Salami Far</span>
+            </a>
+        </footer>
+
+        <!-- Error Modal -->
+        <div id="error-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center hidden z-[60] p-4 transition-opacity duration-200">
+            <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden transform scale-95 opacity-0 transition-all duration-200" id="error-modal-content">
+                <div class="bg-red-500 p-4 text-white flex justify-between items-center">
+                    <h3 class="font-bold flex items-center gap-2" data-i18n="error_title">Error</h3>
+                    <button onclick="closeErrorModal()" class="hover:bg-red-600 rounded p-1">&times;</button>
+                </div>
+                <div class="p-6">
+                    <p class="text-gray-700 mb-2 font-medium" id="error-header">Details:</p>
+                    <textarea id="error-text" class="w-full h-40 p-3 text-xs font-mono bg-red-50 border border-red-200 rounded-lg text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500" readonly onclick="this.select()"></textarea>
+                    <div class="mt-4 flex justify-end gap-2">
+                        <button id="copy-error-btn" onclick="copyErrorText()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors" data-i18n="btn_copy">Copy</button>
+                        <button onclick="closeErrorModal()" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors" data-i18n="btn_close">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <audio id="main-audio"></audio>
+    </div>
+
+    <script>
+        // --- 1. Configurations & Translations ---
+        const CONSTANTS = {
+            API_KEY_STORAGE: 'userGeminiApiKey',
+            MODEL_STORAGE: 'userGeminiModelId',
+            DEFAULT_MODEL_TTS: 'gemini-2.5-flash-preview-tts', // Updated based on docs
+            DEFAULT_MODEL_STT: 'gemini-2.0-flash-exp', // Best for multimodal
+            API_BASE: 'https://generativelanguage.googleapis.com/v1beta/models'
+        };
+
+        const TRANSLATIONS = {
+            fa: {
+                app_title_part1: "استودیوی", app_title_part2: "هوشمند", app_title_part3: "صوتی",
+                app_subtitle: "تولید و تحلیل صدا با قدرت Google Gemini 2.5",
+                settings_title: "تنظیمات کلید API",
+                api_desc: "برای استفاده، کلید API خود را از Google AI Studio دریافت کنید.",
+                api_label: "کلید API", model_label: "نام مدل",
+                btn_save_connect: "ذخیره و بررسی اتصال",
+                tab_tts: "کارگردانی صوتی (TTS)", tab_stt: "تحلیل صدا (STT)",
+                speakers_title: "بازیگران و گویندگان",
+                btn_add_speaker: "افزودن گوینده جدید",
+                btn_download_zip: "دانلود فایل‌ها (ZIP)",
+                script_title: "متن فیلمنامه",
+                btn_refresh: "بروزرسانی کارت‌ها ⟳",
+                script_format: "فرمت: نام گوینده: متن دیالوگ",
+                stt_input_title: "ورودی صدا",
+                upload_text: "فایل صوتی را اینجا رها کنید",
+                stt_prompt_label: "دستور (Prompt):",
+                btn_analyze: "شروع تحلیل",
+                stt_output_title: "نتیجه تحلیل",
+                error_title: "خطا در ارتباط",
+                btn_copy: "کپی خطا", btn_close: "بستن",
+                toggle_lang: "English",
+                msg_connected: "متصل شد.", msg_disconnected: "عدم اتصال.",
+                placeholder_script: "راوی: سلام به همه!\nسارا: این یک تست است.",
+                placeholder_stt_prompt: "متن فایل صوتی را بنویس و اگر به زبان دیگری است ترجمه کن.",
+                tone_label: "لحن:", speed_label: "سرعت:",
+                // Voice Descriptions
+                bright: "روشن", upbeat: "سرزنده", breezy: "شاداب", excitable: "پرشور", youthful: "جوان",
+                firm: "محکم", deep: "عمیق", easy_going: "آسان‌گیر", smooth: "نرم", clear: "واضح",
+                gentle: "مهربان", lively: "پرتکاپو", warm: "گرم", breathy: "نفس‌گیر", informative: "آموزنده",
+                gravelly: "خشن", soft: "لطیف", even: "یکنواخت", mature: "پخته", forward: "رک",
+                friendly: "صمیمی", casual: "محاوره‌ای", knowledgeable: "دانا"
+            },
+            en: {
+                app_title_part1: "Smart", app_title_part2: "Audio", app_title_part3: "Studio",
+                app_subtitle: "Audio Generation & Analysis powered by Google Gemini 2.5",
+                settings_title: "API Settings",
+                api_desc: "Get your free API key from Google AI Studio.",
+                api_label: "API Key", model_label: "Model ID",
+                btn_save_connect: "Save & Verify Connection",
+                tab_tts: "Voice Director (TTS)", tab_stt: "Audio Analysis (STT)",
+                speakers_title: "Cast & Speakers",
+                btn_add_speaker: "Add New Speaker",
+                btn_download_zip: "Download Files (ZIP)",
+                script_title: "Script Editor",
+                btn_refresh: "Refresh Cards ⟳",
+                script_format: "Format: SpeakerName: Dialogue text",
+                stt_input_title: "Audio Input",
+                upload_text: "Drop audio file here",
+                stt_prompt_label: "Prompt:",
+                btn_analyze: "Start Analysis",
+                stt_output_title: "Analysis Result",
+                error_title: "Connection Error",
+                btn_copy: "Copy Error", btn_close: "Close",
+                toggle_lang: "فارسی",
+                msg_connected: "Connected.", msg_disconnected: "Connection failed.",
+                placeholder_script: "Narrator: Welcome everyone!\nSarah: This is a test.",
+                placeholder_stt_prompt: "Transcribe the audio and translate if necessary.",
+                tone_label: "Tone:", speed_label: "Pace:",
+                // Voice Descriptions
+                bright: "Bright", upbeat: "Upbeat", breezy: "Breezy", excitable: "Excitable", youthful: "Youthful",
+                firm: "Firm", deep: "Deep", easy_going: "Easy-going", smooth: "Smooth", clear: "Clear",
+                gentle: "Gentle", lively: "Lively", warm: "Warm", breathy: "Breathy", informative: "Informative",
+                gravelly: "Gravelly", soft: "Soft", even: "Even", mature: "Mature", forward: "Forward",
+                friendly: "Friendly", casual: "Casual", knowledgeable: "Knowledgeable"
+            }
+        };
+
+        // Complete Voice List based on Gemini 2.5 Documentation
+        const ALL_VOICES = [
+            { id: 'Zephyr', gender: 'F', descKey: 'bright' },
+            { id: 'Puck', gender: 'M', descKey: 'upbeat' },
+            { id: 'Charon', gender: 'M', descKey: 'informative' },
+            { id: 'Kore', gender: 'F', descKey: 'firm' },
+            { id: 'Fenrir', gender: 'M', descKey: 'excitable' },
+            { id: 'Leda', gender: 'F', descKey: 'youthful' },
+            { id: 'Orus', gender: 'M', descKey: 'firm' },
+            { id: 'Aoede', gender: 'F', descKey: 'breezy' },
+            { id: 'Callirrhoe', gender: 'F', descKey: 'easy_going' },
+            { id: 'Autonoe', gender: 'F', descKey: 'bright' },
+            { id: 'Enceladus', gender: 'M', descKey: 'breathy' },
+            { id: 'Iapetus', gender: 'M', descKey: 'clear' },
+            { id: 'Umbriel', gender: 'M', descKey: 'easy_going' },
+            { id: 'Algieba', gender: 'F', descKey: 'smooth' },
+            { id: 'Despina', gender: 'F', descKey: 'smooth' },
+            { id: 'Erinome', gender: 'F', descKey: 'clear' },
+            { id: 'Algenib', gender: 'M', descKey: 'gravelly' },
+            { id: 'Rasalgethi', gender: 'M', descKey: 'informative' },
+            { id: 'Laomedeia', gender: 'F', descKey: 'upbeat' },
+            { id: 'Achernar', gender: 'M', descKey: 'soft' },
+            { id: 'Alnilam', gender: 'M', descKey: 'firm' },
+            { id: 'Schedar', gender: 'M', descKey: 'even' },
+            { id: 'Gacrux', gender: 'M', descKey: 'mature' },
+            { id: 'Pulcherrima', gender: 'F', descKey: 'forward' },
+            { id: 'Achird', gender: 'M', descKey: 'friendly' },
+            { id: 'Zubenelgenubi', gender: 'M', descKey: 'casual' },
+            { id: 'Vindemiatrix', gender: 'F', descKey: 'gentle' },
+            { id: 'Sadachbia', gender: 'F', descKey: 'lively' },
+            { id: 'Sadaltager', gender: 'M', descKey: 'knowledgeable' },
+            { id: 'Sulafat', gender: 'F', descKey: 'warm' }
+        ];
+
+        // Tone & Speed Options (Keys are sent to API, Values are localized)
+        const OPTIONS = {
+            tone: { 'default': {fa:'عادی', en:'Normal'}, 'Cheerfully': {fa:'شاد', en:'Cheerful'}, 'Sad': {fa:'غمگین', en:'Sad'}, 'Serious': {fa:'جدی', en:'Serious'}, 'Whispering': {fa:'پچ‌پچ', en:'Whisper'}, 'Angry': {fa:'عصبانی', en:'Angry'}, 'Excited': {fa:'هیجان‌زده', en:'Excited'} },
+            speed: { 'default': {fa:'عادی', en:'Normal'}, 'Quickly': {fa:'سریع', en:'Fast'}, 'Slowly': {fa:'آهسته', en:'Slow'} }
+        };
+
+        let state = {
+            lang: 'en', // Default English
+            apiKey: localStorage.getItem(CONSTANTS.API_KEY_STORAGE) || null,
+            modelId: localStorage.getItem(CONSTANTS.MODEL_STORAGE) || CONSTANTS.DEFAULT_MODEL_TTS,
+            currentMode: 'tts',
+            speakers: { 'Narrator': { voiceId: 'Kore' } }, 
+            currentAudioBtn: null
+        };
+
+        const dom = {
+            apiKeyInput: document.getElementById('api-key-input'),
+            modelIdInput: document.getElementById('model-id-input'),
+            saveApiBtn: document.getElementById('save-api-btn'),
+            apiStatus: document.getElementById('api-status-msg'),
+            modelSuggestions: document.getElementById('model-suggestions'),
+            scriptEditor: document.getElementById('script-editor'),
+            scriptContainer: document.getElementById('script-cards-container'),
+            speakersList: document.getElementById('speakers-list'),
+            mainAudio: document.getElementById('main-audio'),
+            errorModal: document.getElementById('error-modal'),
+            errorText: document.getElementById('error-text'),
+            langToggle: document.getElementById('lang-toggle'),
+            loadingOverlay: document.getElementById('loading-overlay')
+        };
+
+        // --- 2. Initialization & I18n ---
+        function init() {
+            setLanguage(state.lang);
+            dom.modelIdInput.value = state.modelId;
+            updateModelSuggestions();
+            renderSpeakers();
+            parseScript();
+            
+            if (state.apiKey) {
+                dom.apiKeyInput.value = state.apiKey;
+                verifyApiKey(state.apiKey, state.modelId).then(valid => {
+                    renderApiStatus(valid ? 'success' : 'error', valid ? getTrans('msg_connected') : getTrans('msg_disconnected'));
+                }).catch(() => { renderApiStatus('error', getTrans('msg_disconnected')); });
+            } else {
+                renderApiStatus('unset', 'API Key not set.');
+            }
+
+            setupEventListeners();
+        }
+
+        function setLanguage(lang) {
+            state.lang = lang;
+            document.body.className = `text-gray-800 pb-20 bg-gray-50 lang-${lang}`;
+            document.documentElement.dir = lang === 'fa' ? 'rtl' : 'ltr';
+            dom.langToggle.textContent = TRANSLATIONS[lang].toggle_lang;
+            
+            // Update static text
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (TRANSLATIONS[lang][key]) el.textContent = TRANSLATIONS[lang][key];
+            });
+
+            // Update placeholders
+            dom.scriptEditor.placeholder = TRANSLATIONS[lang].placeholder_script;
+            document.getElementById('stt-prompt').value = TRANSLATIONS[lang].placeholder_stt_prompt;
+
+            // Re-render components that depend on lang
+            renderSpeakers();
+            parseScript();
+        }
+
+        function getTrans(key) { return TRANSLATIONS[state.lang][key] || key; }
+
+        function setupEventListeners() {
+            dom.langToggle.addEventListener('click', () => setLanguage(state.lang === 'fa' ? 'en' : 'fa'));
+            dom.saveApiBtn.addEventListener('click', handleSaveApi);
+            document.getElementById('refresh-script-btn').addEventListener('click', parseScript);
+            document.getElementById('add-speaker-btn').addEventListener('click', handleAddSpeaker);
+            dom.speakersList.addEventListener('click', handleSpeakerActions);
+            dom.scriptContainer.addEventListener('click', handleCardActions);
+            document.getElementById('export-btn').addEventListener('click', handleExport);
+            
+            // Audio Events
+            dom.mainAudio.onended = () => resetPlayButton(state.currentAudioBtn);
+            dom.mainAudio.onpause = () => { if (!dom.mainAudio.ended && state.currentAudioBtn) resetPlayButton(state.currentAudioBtn, true); };
+            dom.mainAudio.onplay = () => { if (state.currentAudioBtn) setPlayButtonState(state.currentAudioBtn, 'playing'); };
+
+            // STT
+            document.getElementById('audio-file-input').addEventListener('change', handleFileSelect);
+            document.getElementById('analyze-btn').addEventListener('click', handleAudioAnalysis);
+        }
+
+        // --- 3. Core Logic (TTS, STT) ---
+
+        // Helper: Exponential Backoff Fetch
+        async function fetchWithRetry(url, options, retries = 3, delay = 2000) {
+            try {
+                const response = await fetch(url, options);
+                if (response.status === 429) { // Too Many Requests
+                    throw new Error("RATE_LIMIT");
+                }
+                return response;
+            } catch (err) {
+                if (retries > 0 && (err.message === "RATE_LIMIT" || err.name === "TypeError")) {
+                    console.warn(`Rate Limit hit. Retrying in ${delay}ms...`);
+                    await new Promise(res => setTimeout(res, delay));
+                    return fetchWithRetry(url, options, retries - 1, delay * 2);
+                }
+                throw err;
+            }
+        }
+
+        async function generateTTS(text, voiceId, tone, speed) {
+            if (!state.apiKey) throw new Error("API Key missing.");
+            const url = `${CONSTANTS.API_BASE}/${state.modelId}:generateContent?key=${state.apiKey}`;
+            
+            // Simplified Prompting to prevent "Text Generation" errors
+            // We strip complex headers to prevent the model from entering "chat mode"
+            let finalPrompt = text;
+            if ((tone && tone !== 'default') || (speed && speed !== 'default')) {
+                let parts = [];
+                if (tone && tone !== 'default') parts.push(tone);
+                if (speed && speed !== 'default') parts.push(speed);
+                // "Say in a X way: text" is a pattern that works well for Gemini TTS to enforce audio-only behavior
+                finalPrompt = `Say in a ${parts.join(' and ')} voice: \n${text}`; 
+            }
+
+            const payload = {
+                contents: [{ parts: [{ text: finalPrompt }] }],
+                generationConfig: { 
+                    responseModalities: ["AUDIO"], 
+                    speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voiceId } } } 
+                }
+            };
+
+            const response = await fetchWithRetry(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                let errMessage = "Unknown Error";
+                try {
+                    const err = await response.json();
+                    errMessage = err.error?.message || JSON.stringify(err);
+                } catch(e) { errMessage = response.statusText; }
+                throw new Error(errMessage);
+            }
+            
+            const data = await response.json();
+            const inlineData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+            if (!inlineData) throw new Error('No audio returned. Check model compatibility.');
+            return inlineData; 
+        }
+
+        // --- 4. UI Rendering ---
+
+        function renderSpeakers() {
+            dom.speakersList.innerHTML = Object.entries(state.speakers).map(([name, config]) => {
+                const options = ALL_VOICES.map(v => {
+                    const desc = getTrans(v.descKey);
+                    return `<option value="${v.id}" ${config.voiceId === v.id ? 'selected' : ''}>${v.id} (${v.gender} - ${desc})</option>`;
+                }).join('');
+                return `<div class="bg-white border border-gray-200 rounded-lg p-3 hover:border-indigo-300 transition-colors">
+                    <div class="flex justify-between items-center mb-2"><span class="font-bold text-gray-700">${name}</span><button class="text-red-400 hover:text-red-600 remove-speaker" data-name="${name}">&times;</button></div>
+                    <div class="flex gap-2"><select class="w-full text-sm border-gray-300 rounded-md focus:ring-indigo-500 voice-select" data-name="${name}">${options}</select><button class="bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-md p-2 sample-btn" data-name="${name}">🔊</button></div></div>`;
+            }).join('');
+        }
+
+        function parseScript() {
+            const text = dom.scriptEditor.value;
+            const lines = text.split('\n').filter(line => line.trim() !== '');
+            dom.scriptContainer.innerHTML = lines.map((line, idx) => {
+                let [speaker, ...contentParts] = line.split(':');
+                let content = contentParts.join(':').trim();
+                
+                if (!state.speakers[speaker?.trim()]) { 
+                    if (Object.keys(state.speakers).includes(speaker?.trim())) speaker = speaker.trim(); 
+                    else { content = line; speaker = Object.keys(state.speakers)[0]; } 
+                } else speaker = speaker.trim();
+                
+                const speakerOpts = Object.keys(state.speakers).map(s => `<option value="${s}" ${s === speaker ? 'selected' : ''}>${s}</option>`).join('');
+                
+                // Render Style Dropdowns
+                const toneOpts = Object.entries(OPTIONS.tone).map(([val, labelObj]) => `<option value="${val}">${labelObj[state.lang]}</option>`).join('');
+                const speedOpts = Object.entries(OPTIONS.speed).map(([val, labelObj]) => `<option value="${val}">${labelObj[state.lang]}</option>`).join('');
+
+                return `
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 card-hover flex flex-col md:flex-row gap-4" id="line-${idx}">
+                    <div class="flex-grow space-y-3">
+                        <div class="flex flex-wrap gap-2 items-center">
+                            <select class="w-full md:w-1/4 p-2 text-sm border-gray-300 rounded-md bg-gray-50 font-bold text-indigo-700 speaker-select">${speakerOpts}</select>
+                            <div class="flex items-center gap-1 w-[48%] md:w-auto flex-1">
+                                <span class="text-xs text-gray-400">${getTrans('tone_label')}</span>
+                                <select class="w-full p-2 text-sm border-gray-300 rounded-md bg-white tone-select">${toneOpts}</select>
+                            </div>
+                            <div class="flex items-center gap-1 w-[48%] md:w-auto flex-1">
+                                <span class="text-xs text-gray-400">${getTrans('speed_label')}</span>
+                                <select class="w-full p-2 text-sm border-gray-300 rounded-md bg-white speed-select">${speedOpts}</select>
+                            </div>
+                        </div>
+                        <textarea class="w-full p-3 border border-gray-200 rounded-md text-gray-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-shadow resize-none text-content text-lg" rows="2" dir="auto">${content}</textarea>
+                    </div>
+                    <div class="flex md:flex-col items-center justify-center gap-2 border-t md:border-t-0 md:border-r border-gray-100 pt-3 md:pt-0 md:pr-4 md:rtl:border-r md:rtl:border-l-0 md:ltr:border-l md:ltr:border-r-0">
+                        <button class="w-12 h-12 rounded-full bg-blue-500 hover:bg-blue-600 text-white shadow-md transition-transform active:scale-95 flex items-center justify-center play-line-btn" data-idx="${idx}"><svg class="w-5 h-5 ml-0.5 pointer-events-none" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+                        <a class="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center opacity-50 cursor-not-allowed download-line-btn transition-colors" data-idx="${idx}"><svg class="w-5 h-5 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg></a>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        // --- Helpers & Event Handlers ---
+        window.switchTab = function(mode) {
+            state.currentMode = mode;
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active', 'text-blue-600', 'border-blue-600'));
+            document.getElementById(`tab-btn-${mode}`).classList.add('active', 'text-blue-600', 'border-blue-600');
+            document.getElementById('view-tts').classList.toggle('hidden', mode !== 'tts');
+            document.getElementById('view-stt').classList.toggle('hidden', mode !== 'stt');
+            
+            // Auto-switch models based on tab logic
+            if (mode === 'tts') {
+                if (!state.modelId.includes('tts')) state.modelId = CONSTANTS.DEFAULT_MODEL_TTS;
+            } else if (mode === 'stt') {
+                if (state.modelId.includes('tts')) state.modelId = CONSTANTS.DEFAULT_MODEL_STT;
+            }
+            dom.modelIdInput.value = state.modelId;
+            updateModelSuggestions();
+        };
+
+        function updateModelSuggestions() {
+            const ttsOpts = `<option value="gemini-2.5-flash-preview-tts">Gemini 2.5 Flash TTS (Recommended)</option><option value="gemini-2.5-pro-preview-tts">Gemini 2.5 Pro TTS</option>`;
+            const sttOpts = `<option value="gemini-2.0-flash-exp">Gemini 2.0 Flash (Recommended)</option><option value="gemini-1.5-pro">Gemini 1.5 Pro</option><option value="gemini-3-flash-preview">Gemini 3 Flash (Preview)</option>`;
+            dom.modelSuggestions.innerHTML = state.currentMode === 'tts' ? ttsOpts : sttOpts;
+        }
+
+        function handleAddSpeaker() {
+            const name = prompt(state.lang === 'fa' ? 'نام کاراکتر:' : 'Character Name:');
+            if (name && !state.speakers[name]) { state.speakers[name] = { voiceId: 'Puck' }; renderSpeakers(); parseScript(); } 
+        }
+
+        async function handleCardActions(e) {
+            const idx = e.target.closest('[data-idx]')?.dataset.idx;
+            if (idx === undefined) return;
+            const card = document.getElementById(`line-${idx}`);
+            const text = card.querySelector('.text-content').value;
+            const speakerName = card.querySelector('.speaker-select').value;
+            const voiceId = state.speakers[speakerName].voiceId;
+            const tone = card.querySelector('.tone-select').value;
+            const speed = card.querySelector('.speed-select').value;
+
+            if (e.target.classList.contains('play-line-btn')) {
+                const btn = e.target;
+                if (state.currentAudioBtn === btn && !dom.mainAudio.paused) { dom.mainAudio.pause(); return; }
+                if (state.currentAudioBtn && state.currentAudioBtn !== btn) { resetPlayButton(state.currentAudioBtn); dom.mainAudio.pause(); }
+                state.currentAudioBtn = btn;
+                setPlayButtonState(btn, 'loading');
+                try {
+                    const audioData = await generateTTS(text, voiceId, tone, speed);
+                    const url = createAudioUrl(audioData);
+                    dom.mainAudio.src = url; dom.mainAudio.play();
+                    const dlBtn = card.querySelector('.download-line-btn');
+                    dlBtn.href = url; dlBtn.download = `line_${parseInt(idx)+1}.wav`;
+                    dlBtn.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-gray-100', 'text-gray-500'); dlBtn.classList.add('bg-green-100', 'text-green-600', 'hover:bg-green-200');
+                } catch (err) { showError(err); resetPlayButton(btn); state.currentAudioBtn = null; }
+            }
+        }
+
+        // --- STT & File Handlers ---
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                document.getElementById('upload-placeholder').classList.add('hidden');
+                document.getElementById('file-info').classList.remove('hidden');
+                document.getElementById('filename-display').textContent = file.name;
+            }
+        }
+
+        async function handleAudioAnalysis() {
+            if (!state.apiKey) return showError("API Key missing");
+            const file = document.getElementById('audio-file-input').files[0];
+            if (!file) return showError("No file selected");
+            
+            const btn = document.getElementById('analyze-btn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner w-5 h-5 border-white"></span> ...';
+            btn.disabled = true;
+            document.getElementById('stt-result').innerHTML = "...";
+
+            try {
+                const base64Audio = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result.split(',')[1]);
+                    reader.readAsDataURL(file);
+                });
+                
+                const url = `${CONSTANTS.API_BASE}/${state.modelId}:generateContent?key=${state.apiKey}`;
+                const payload = {
+                    contents: [{
+                        parts: [
+                            { text: document.getElementById('stt-prompt').value },
+                            { inlineData: { mimeType: file.type, data: base64Audio } }
+                        ]
+                    }]
+                };
+                
+                const response = await fetchWithRetry(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error?.message || response.statusText);
+                }
+                
+                const data = await response.json();
+                document.getElementById('stt-result').innerHTML = marked.parse(data.candidates?.[0]?.content?.parts?.[0]?.text || "No response");
+            } catch(e) { showError(e); document.getElementById('stt-result').innerText = "Analysis Failed."; }
+            finally { btn.innerHTML = originalText; btn.disabled = false; }
+        }
+
+        // --- Common Utils (Verify, Export, Wav) ---
+        async function handleSaveApi() {
+            const key = dom.apiKeyInput.value.trim();
+            const model = dom.modelIdInput.value.trim();
+            if(!key) return;
+            renderApiStatus('loading', '...');
+            try {
+                await verifyApiKey(key, model);
+                state.apiKey = key; state.modelId = model;
+                localStorage.setItem(CONSTANTS.API_KEY_STORAGE, key);
+                localStorage.setItem(CONSTANTS.MODEL_STORAGE, model);
+                renderApiStatus('success', getTrans('msg_connected'));
+            } catch(e) { renderApiStatus('error', getTrans('msg_disconnected')); showError(e); }
+        }
+
+        async function verifyApiKey(key, model) {
+            const url = `${CONSTANTS.API_BASE}/${model}:generateContent?key=${key}`;
+            const isTTS = model.includes('tts');
+            const payload = { contents: [{ parts: [{ text: isTTS ? "Testing connection" : "Hi" }] }] };
+            if (isTTS) payload.generationConfig = { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Puck" } } } };
+            
+            const response = await fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+            if (!response.ok) {
+                const err = await response.json();
+                // Handle specific error for modalitites if model is wrong but key is right
+                if (response.status === 400 && JSON.stringify(err).includes("response modalities")) return true; 
+                throw new Error(err.error?.message || "Invalid API Key or Model");
+            }
+            return true;
+        }
+
+        function createAudioUrl(inlineData) {
+            const binaryString = atob(inlineData.data);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) bytes[i] = binaryString.charCodeAt(i);
+            const sampleRateMatch = inlineData.mimeType?.match(/rate=(\d+)/);
+            const sampleRate = sampleRateMatch ? parseInt(sampleRateMatch[1]) : 24000;
+            const pcm16 = new Int16Array(bytes.buffer);
+            
+            // Create WAV Header
+            const buffer = new ArrayBuffer(44 + pcm16.length * 2);
+            const view = new DataView(buffer);
+            const writeString = (view, offset, string) => { for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i)); };
+            
+            writeString(view, 0, 'RIFF'); view.setUint32(4, 36 + pcm16.length * 2, true); writeString(view, 8, 'WAVE');
+            writeString(view, 12, 'fmt '); view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+            view.setUint32(24, sampleRate, true); view.setUint32(28, sampleRate * 2, true); view.setUint16(32, 2, true);
+            view.setUint16(34, 16, true); writeString(view, 36, 'data'); view.setUint32(40, pcm16.length * 2, true);
+            for (let i = 0; i < pcm16.length; i++) view.setInt16(44 + i * 2, pcm16[i], true);
+            
+            return URL.createObjectURL(new Blob([view], { type: 'audio/wav' }));
+        }
+
+        function renderApiStatus(type, msg) {
+            const colors = { unset: 'text-gray-500', loading: 'text-blue-600', success: 'text-green-600', error: 'text-red-600' };
+            const icons = { unset: '⚪', loading: '<span class="spinner w-4 h-4 border-blue-600"></span>', success: '✓', error: '✕' };
+            dom.apiStatus.innerHTML = `<span class="${colors[type]} flex items-center gap-2">${icons[type]} ${msg}</span>`;
+        }
+
+        function showError(error) {
+            console.error(error);
+            let message = typeof error === 'string' ? error : (error.message || JSON.stringify(error));
+            if(message.includes("429") || message.includes("RATE_LIMIT")) message += "\n(Too Many Requests - Please wait a moment)";
+            if(message.includes("403")) message += "\n(Access Denied - Check API Key)";
+            dom.errorText.value = message;
+            dom.errorModal.classList.remove('hidden');
+            setTimeout(() => document.getElementById('error-modal-content').classList.remove('scale-95', 'opacity-0'), 10);
+        }
+        function closeErrorModal() { 
+            document.getElementById('error-modal-content').classList.add('scale-95', 'opacity-0');
+            setTimeout(() => dom.errorModal.classList.add('hidden'), 200);
+        }
+        function copyErrorText() {
+            dom.errorText.select(); document.execCommand('copy');
+        }
+        function setPlayButtonState(btn, state) {
+            if (state === 'loading') { btn.innerHTML = '<span class="spinner w-5 h-5 border-white"></span>'; btn.disabled = true; }
+            else if (state === 'playing') { btn.innerHTML = '<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>'; btn.disabled = false; }
+        }
+        function resetPlayButton(btn, isPaused) {
+            if (!btn) return;
+            btn.innerHTML = '<svg class="w-5 h-5 ml-0.5 pointer-events-none" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+            btn.disabled = false;
+        }
+        function handleSpeakerActions(e) {
+            if(e.target.classList.contains('remove-speaker')) { delete state.speakers[e.target.dataset.name]; renderSpeakers(); parseScript(); }
+            else if(e.target.classList.contains('voice-select')) state.speakers[e.target.dataset.name].voiceId = e.target.value;
+            else if(e.target.closest('.sample-btn')) {
+                // Quick sample play for voice selection
+                const voiceId = state.speakers[e.target.closest('.sample-btn').dataset.name].voiceId;
+                playSample(voiceId);
+            }
+        }
+        
+        async function playSample(voiceId) {
+             // Simple hardcoded sample logic or call TTS with short text
+             if(!state.apiKey) return alert("Please set API Key first");
+             try {
+                const audioData = await generateTTS("Hello, this is my voice.", voiceId, 'default', 'default');
+                const url = createAudioUrl(audioData);
+                dom.sampleAudio = new Audio(url);
+                dom.sampleAudio.play();
+             } catch(e) { console.error(e); }
+        }
+
+        async function handleExport() {
+            if(!state.apiKey) return showError("API Key required");
+            const zip = new JSZip();
+            const cards = document.querySelectorAll('[id^="line-"]');
+            const scriptJson = [];
+            const btn = document.getElementById('export-btn');
+            const status = document.getElementById('export-status');
+            
+            btn.disabled = true;
+            
+            try {
+                for (let i = 0; i < cards.length; i++) {
+                    const idx = cards[i].id.split('-')[1];
+                    const text = cards[i].querySelector('.text-content').value;
+                    const speaker = cards[i].querySelector('.speaker-select').value;
+                    const voiceId = state.speakers[speaker].voiceId;
+                    const tone = cards[i].querySelector('.tone-select').value;
+                    const speed = cards[i].querySelector('.speed-select').value;
+                    
+                    status.innerHTML = `<span class="text-blue-600">Processing line ${i+1}/${cards.length}</span>`;
+                    
+                    // Added retry logic implicitly via generateTTS calling fetchWithRetry
+                    const audioData = await generateTTS(text, voiceId, tone, speed);
+                    const url = createAudioUrl(audioData);
+                    
+                    const blob = await (await fetch(url)).blob();
+                    zip.file(`audio/line_${i+1}.wav`, blob);
+                    scriptJson.push({ line: i+1, speaker, text, voiceId, tone, speed });
+                    
+                    // Small delay to prevent rate limits during bulk export
+                    await new Promise(r => setTimeout(r, 300));
+                }
+                zip.file("script.json", JSON.stringify(scriptJson, null, 2));
+                const content = await zip.generateAsync({type:"blob"});
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(content);
+                a.download = "Audio_Project.zip";
+                a.click();
+                status.innerHTML = '<span class="text-green-600 font-bold">Done!</span>';
+            } catch(e) { showError(e); status.innerText = "Error"; }
+            finally { btn.disabled = false; }
+        }
+
+        init();
+    </script>
+</body>
+</html>
